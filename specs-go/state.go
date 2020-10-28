@@ -36,24 +36,9 @@ type State struct {
 	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
-type SeccompPhase string
-
-const (
-	// SeccompPhaseStart indicates that the seccomp filter is applied to
-	// the main process of the container during container start
-	SeccompPhaseStart SeccompPhase = "start"
-
-	// SeccompPhaseExec indicates that the seccomp filter is applied to a
-	// new process that entered the container while it's running
-	SeccompPhaseExec SeccompPhase = "exec"
-)
-
 type SeccompState struct {
 	// Version is the version of the specification that is supported.
 	Version string `json:"ociVersion"`
-	// Phase indicates whether this seccomp filter is applied during
-	// container start or on a process that enters the container later on
-	Phase SeccompPhase `json:"seccompPhase"`
 	// SeccompFd is the file descriptor for Seccomp User Notification
 	SeccompFd int `json:"seccompFd"`
 	// Pid is the process ID on which the seccomp filter is applied

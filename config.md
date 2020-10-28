@@ -460,7 +460,7 @@ The definition of `createContainer` hooks is currently underspecified and hooks 
 
 ### <a name="configHooksSendSeccompFd" />SendSeccompFd Hooks
 
-The `sendSeccompFd` hooks MUST only be called if the seccomp policy contains `SCMP_ACT_NOTIFY`.
+The `sendSeccompFd` hooks MUST only be called if the seccomp policy contains `SCMP_ACT_NOTIFY` actions.
 
 The `sendSeccompFd` hooks MUST be called after the [`start`](runtime.md#start) operation is called and after the seccomp policy is installed but [before the user-specified program command is executed](runtime.md#lifecycle).
 The `sendSeccompFd` hooks MAY additionally be called while the container is in the [`running` state](runtime.md#runtimeState), for example during an `exec` operation.
@@ -475,16 +475,9 @@ The seccomp state is a data structure passed via stdin to the SendSeccompFd hook
 It includes the following properties:
 
 * **`ociVersion`** (string, REQUIRED) is version of the Open Container Initiative Runtime Specification with which the seccomp state complies.
-* **`phase`** (string, REQUIRED) is the phase at which the seccomp file descriptor is created.
-    The value MAY be one of:
-
-    * `start`: the seccomp filter is created following the [`start`](runtime.md#start) command
-    * `exec`: the seccomp filter is created following an `exec` command
-
-    Additional values MAY be defined by the runtime, however, they MUST be used to represent new values not defined above.
-* **`seccompFd`** (int, REQUIRED) is the file descriptor for Seccomp User Notification passed via process inheritance to the SendSeccompFd hooks.
-* **`pid`** (int, REQUIRED) is the process ID on which the seccomp filter is applied. In the `start` phase, this is the same as `state.pid`. In the `exec` phase, this is a different pid than `state.pid`.
-* **`pidFd`** (int, OPTIONAL) is a pidfd for the process on which the seccomp filter is applied. This file descriptor is also passed via process inheritance to the SendSeccompFd hooks.
+* **`seccompFd`** (int, REQUIRED) is the file descriptor for Seccomp User Notification passed via process inheritance to the SendSeccompFd hooks. The value MUST NOT be zero: zero is reserved for stdin.
+* **`pid`** (int, REQUIRED) is the process ID on which the seccomp filter is applied.
+* **`pidFd`** (int, OPTIONAL) is a pid file descriptor for the process on which the seccomp filter is applied. This file descriptor is also passed via process inheritance to the SendSeccompFd hooks. As the field is optional, the value MAY be zero, meaning `pidFd` is not passed to the hook. If passed, the file descriptor MUST NOT be zero: zero is reserved for stdin.
 * **`state`** (map, REQUIRED) is the [state](runtime.md#state) of the container.
 
 When serialized in JSON, the format MUST adhere to the following pattern:
@@ -492,14 +485,13 @@ When serialized in JSON, the format MUST adhere to the following pattern:
 ```json
 {
     "ociVersion": "0.2.0",
-    "phase": "start",
     "seccompFd": 3,
     "pid": 4422,
     "pidFd": 4,
     "state": {
         "ociVersion": "0.2.0",
         "id": "oci-container1",
-        "status": "running",
+        "status": "creating",
         "pid": 4422,
         "bundle": "/containers/redis",
         "annotations": {
@@ -508,6 +500,10 @@ When serialized in JSON, the format MUST adhere to the following pattern:
     }
 }
 ```
+
+Note that if `state.status` is `creating`, the seccomp filter is created following the [`start`](runtime.md#start) command and `.pid` has the same value as `.state.pid`.
+And if `state.status` is `running`, the seccomp filter is created following an `exec` command and `.pid` has a different value than `.state.pid`.
+
 
 ### <a name="configHooksStartContainer" />StartContainer Hooks
 
