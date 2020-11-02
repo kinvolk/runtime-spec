@@ -624,6 +624,12 @@ The following parameters can be specified to set up seccomp:
     * `SECCOMP_FILTER_FLAG_TSYNC`
     * `SECCOMP_FILTER_FLAG_LOG`
     * `SECCOMP_FILTER_FLAG_SPEC_ALLOW`
+    * `SECCOMP_FILTER_FLAG_NEW_LISTENER`
+    * `SECCOMP_FILTER_FLAG_TSYNC_ESRCH`
+
+* **`listenerPath`** *(string, OPTIONAL)* - specifies the path of UNIX domain socket which the runtime will pass the file descriptor of seccomp notification using `SCM_RIGHT` to.
+
+* **`listenerMetadata`** *(string, OPTIONAL)* - specifies an opaque data to pass to the seccomp agent.
 
 * **`syscalls`** *(array of objects, OPTIONAL)* - match a syscall in seccomp.
     While this property is OPTIONAL, some values of `defaultAction` are not useful without `syscalls` entries.
