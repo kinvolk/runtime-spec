@@ -5,17 +5,17 @@ type ContainerState string
 
 const (
 	// StateCreating indicates that the container is being created
-	StateCreating ContainerState  = "creating"
+	StateCreating ContainerState = "creating"
 
 	// StateCreated indicates that the runtime has finished the create operation
-	StateCreated ContainerState  = "created"
+	StateCreated ContainerState = "created"
 
 	// StateRunning indicates that the container process has executed the
 	// user-specified program but has not exited
-	StateRunning ContainerState  = "running"
+	StateRunning ContainerState = "running"
 
 	// StateStopped indicates that the container process has exited
-	StateStopped ContainerState  = "stopped"
+	StateStopped ContainerState = "stopped"
 )
 
 // State holds information about the runtime state of the container.
@@ -32,4 +32,19 @@ type State struct {
 	Bundle string `json:"bundle"`
 	// Annotations are key values associated with the container.
 	Annotations map[string]string `json:"annotations,omitempty"`
+}
+
+type SeccompState struct {
+	// Version is the version of the specification that is supported.
+	Version string `json:"ociVersion"`
+	// SeccompFd is the index of the file descriptor in the `SCM_RIGHTS` array referring to the seccomp notify file descriptor. It is always zero.
+	SeccompFd int `json:"seccompFd"`
+	// Pid is the process ID, as seen by the runtime, on which the seccomp filter is applied (target process).
+	Pid int `json:"pid"`
+	// PidFd is is the index of the file descriptor in the `SCM_RIGHTS` array referring to the target process file descriptor (e.g as returned by `pidfd_open(2)` or by `clone(2)` with the `CLONE_PID` flag).
+	PidFd int `json:"pidFd,omitempty"`
+	// Opaque metadata copied from the listenerMetadata seccomp field.
+	Metadata string `json:"metadata,omitempty"`
+	// State of the container
+	State State `json:"state"`
 }

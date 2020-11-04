@@ -624,6 +624,19 @@ The following parameters can be specified to set up seccomp:
     * `SECCOMP_FILTER_FLAG_TSYNC`
     * `SECCOMP_FILTER_FLAG_LOG`
     * `SECCOMP_FILTER_FLAG_SPEC_ALLOW`
+    * `SECCOMP_FILTER_FLAG_NEW_LISTENER`
+    * `SECCOMP_FILTER_FLAG_TSYNC_ESRCH`
+
+* **`listenerPath`** *(string, OPTIONAL)* - specifies the path of UNIX domain socket over which the runtime will send the [seccomp state](#seccompstate) data structure, using `SCM_RIGHTS` for file descriptors.
+    This socket MUST use `AF_UNIX` domain and `SOCK_STREAM` type.
+    The runtime MUST send exactly one [seccomp state](#seccompstate) per connection.
+    The connection MUST NOT be reused and it MUST be closed after sending a seccomp state.
+    If sending to this socket fails, the runtime MUST [generate an error](runtime.md#errors).
+    This field MUST be set if and only if the flag `SECCOMP_FILTER_FLAG_NEW_LISTENER` is used.
+
+* **`listenerMetadata`** *(string, OPTIONAL)* - specifies an opaque data to pass to the seccomp agent.
+    This string will be sent as a field in the [seccomp state](#seccompstate).
+    This field MUST NOT be set if `listenerPath` is not set.
 
 * **`syscalls`** *(array of objects, OPTIONAL)* - match a syscall in seccomp.
     While this property is OPTIONAL, some values of `defaultAction` are not useful without `syscalls` entries.
@@ -633,7 +646,7 @@ The following parameters can be specified to set up seccomp:
     * **`names`** *(array of strings, REQUIRED)* - the names of the syscalls.
         `names` MUST contain at least one entry.
     * **`action`** *(string, REQUIRED)* - the action for seccomp rules.
-        A valid list of constants as of libseccomp v2.4.0 is shown below.
+        A valid list of constants as of libseccomp v2.5.0 is shown below.
 
         * `SCMP_ACT_KILL`
         * `SCMP_ACT_KILL_PROCESS`
@@ -642,6 +655,7 @@ The following parameters can be specified to set up seccomp:
         * `SCMP_ACT_TRACE`
         * `SCMP_ACT_ALLOW`
         * `SCMP_ACT_LOG`
+        * `SCMP_ACT_NOTIFY`
 
     * **`errnoRet`** *(uint, OPTIONAL)* - the errno return code to use.
         Some actions like `SCMP_ACT_ERRNO` and `SCMP_ACT_TRACE` allow to specify the errno
@@ -684,6 +698,50 @@ The following parameters can be specified to set up seccomp:
     ]
 }
 ```
+
+### <a name="seccompstate" />The Seccomp State
+
+The seccomp state is a data structure passed via a UNIX socket.
+The container runtime MUST send the seccomp state over the UNIX socket as regular payload serialized in JSON.
+The container runtime MUST also send the file descriptor(s) via `SCM_RIGHTS`: the seccomp file descriptor returned by the seccomp syscall and, optionally, the process file descriptor (e.g as returned by `pidfd_open(2)` or by `clone(2)` with the `CLONE_PID` flag).
+The container runtime MAY use several `sendmsg(2)` calls to send the aforementioned data.
+If more than one `sendmsg(2)` is used, the file descriptors MUST be sent only in the first call.
+
+The seccomp state includes the following properties:
+
+* **`ociVersion`** (string, REQUIRED) is version of the Open Container Initiative Runtime Specification with which the seccomp state complies.
+* **`seccompFd`** (int, REQUIRED) is the index of the file descriptor in the `SCM_RIGHTS` array refering to the seccomp notify file descriptor.
+    The value MUST be 0.
+* **`pid`** (int, REQUIRED) is the process ID, as seen by the runtime, on which the seccomp filter is applied (target process).
+* **`pidFd`** (int, OPTIONAL) is the index of the file descriptor in the `SCM_RIGHTS` array referring to the target process file descriptor.
+    If present, this value MUST NOT be zero.
+* **`metadata`** (string, OPTIONAL) is the string set in `listenerMetadata`.
+    If the `listenerMetadata` is set, then the runtime MUST set this field too.
+* **`state`** (map, REQUIRED) is the [state](runtime.md#state) of the container.
+
+Example:
+
+```json
+{
+    "ociVersion": "0.2.0",
+    "seccompFd": 0,
+    "pid": 4422,
+    "pidFd": 1,
+    "state": {
+        "ociVersion": "0.2.0",
+        "id": "oci-container1",
+        "status": "creating",
+        "pid": 4422,
+        "bundle": "/containers/redis",
+        "annotations": {
+            "myKey": "myValue"
+        }
+    }
+}
+```
+
+Note that if `state.status` is `creating`, the seccomp filter is created following the [`start`](runtime.md#start) command and `.pid` has the same value as `.state.pid`.
+And if `state.status` is `running`, the seccomp filter is created following an `exec` command and `.pid` has a different value than `.state.pid`.
 
 ## <a name="configLinuxRootfsMountPropagation" />Rootfs Mount Propagation
 
